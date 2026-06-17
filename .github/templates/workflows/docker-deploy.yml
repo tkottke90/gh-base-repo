@@ -6,13 +6,16 @@ on:
       - published
   workflow_dispatch:
     inputs:
+      registry:
+        description: 'Container registry host (e.g. ghcr.io, registry.example.com:5000)'
+        type: string
+        default: ghcr.io
       deploy:
         description: 'Deploy release candidate after build'
         type: boolean
         default: false
 
 env:
-  REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
@@ -32,34 +35,37 @@ jobs:
         id: tag
         run: |
           if [ "${{ github.event_name }}" = "release" ]; then
+            REGISTRY="${{ vars.DOCKER_REGISTRY || 'ghcr.io' }}"
             echo "value=${{ github.ref_name }}" >> $GITHUB_OUTPUT
             echo "push=true" >> $GITHUB_OUTPUT
           else
+            REGISTRY="${{ inputs.registry }}"
             LATEST=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
             LATEST=${LATEST:-v0.0.0}
             SHORT_SHA=$(git rev-parse --short HEAD)
             echo "value=${LATEST}-RC-${SHORT_SHA}" >> $GITHUB_OUTPUT
             echo "push=${{ inputs.deploy }}" >> $GITHUB_OUTPUT
           fi
+          echo "registry=${REGISTRY}" >> $GITHUB_OUTPUT
 
       - name: Log in to container registry
         if: steps.tag.outputs.push == 'true'
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ${{ steps.tag.outputs.registry }}
+          username: ${{ secrets.REGISTRY_USERNAME || github.actor }}
+          password: ${{ secrets.REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
 
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ steps.tag.outputs.registry }}/${{ env.IMAGE_NAME }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
           push: ${{ steps.tag.outputs.push == 'true' }}
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.value }}
+          tags: ${{ steps.tag.outputs.registry }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.value }}
           labels: ${{ steps.meta.outputs.labels }}
