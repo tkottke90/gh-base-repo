@@ -138,10 +138,11 @@ Templates are pushed to target repositories using the **Distribute Template** wo
 
 **Inputs:**
 
-| Input | Description |
-|-------|-------------|
-| `target_repo` | The repository to push to, in `owner/repo` format |
-| `template` | The template to distribute (`docker-deploy`, `nodejs`, `npm-publish`, or `typescript`) |
+| Input | Required | Description |
+|-------|----------|-------------|
+| `target_repo` | Yes | The repository to push to, in `owner/repo` format |
+| `template` | Yes | The template to distribute (`docker-deploy`, `nodejs`, `npm-publish`, or `typescript`) |
+| `path` | No | Subdirectory in the target repo to copy the template into. Defaults to the repo root. Useful for `nodejs` and `typescript` templates when targeting a specific package directory (e.g. `packages/my-lib`) |
 
 The workflow checks out both this repo and the target repo, copies all files from the chosen template bundle into the target root, and opens a pull request in the target repository for review before anything is merged.
 

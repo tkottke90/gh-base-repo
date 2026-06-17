@@ -16,6 +16,11 @@ on:
           - nodejs
           - npm-publish
           - typescript
+      path:
+        description: 'Subdirectory in the target repo to copy the template into (optional, defaults to repo root)'
+        required: false
+        type: string
+        default: ''
 
 jobs:
   distribute:
@@ -36,8 +41,11 @@ jobs:
       - name: Copy template
         env:
           TEMPLATE: ${{ inputs.template }}
+          DEST_PATH: ${{ inputs.path }}
         run: |
-          cp -r "source/.github/templates/${TEMPLATE}/." target/
+          DEST="target${DEST_PATH:+/${DEST_PATH}}"
+          mkdir -p "$DEST"
+          cp -r "source/.github/templates/${TEMPLATE}/." "$DEST/"
 
       - name: Open PR in target repo
         uses: peter-evans/create-pull-request@v7
@@ -49,7 +57,7 @@ jobs:
           delete-branch: true
           title: "chore: add ${{ inputs.template }} from tkottke90/gh-base-repo"
           body: |
-            Distributes `${{ inputs.template }}` from [tkottke90/gh-base-repo](https://github.com/tkottke90/gh-base-repo).
+            Distributes `${{ inputs.template }}` from [tkottke90/gh-base-repo](https://github.com/tkottke90/gh-base-repo)${{ inputs.path && format(' into `{0}`', inputs.path) || '' }}.
 
             > [!WARNING]
             > Review this workflow carefully before merging — it will run with access to this repository's secrets.
