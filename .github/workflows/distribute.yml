@@ -12,8 +12,8 @@ on:
         required: true
         type: choice
         options:
-          - .github/workflows/docker-deploy.yml
-          - package.json
+          - docker-deploy
+          - nodejs
 
 jobs:
   distribute:
@@ -35,10 +35,7 @@ jobs:
         env:
           TEMPLATE: ${{ inputs.template }}
         run: |
-          src="source/.github/templates/${TEMPLATE}"
-          dest="target/${TEMPLATE}"
-          mkdir -p "$(dirname "$dest")"
-          cp "$src" "$dest"
+          cp -r "source/.github/templates/${TEMPLATE}/." target/
 
       - name: Open PR in target repo
         uses: peter-evans/create-pull-request@v7
