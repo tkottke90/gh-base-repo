@@ -6,10 +6,6 @@ on:
       - published
   workflow_dispatch:
     inputs:
-      registry:
-        description: 'Container registry host (e.g. ghcr.io, registry.example.com:5000)'
-        type: string
-        default: ghcr.io
       deploy:
         description: 'Deploy release candidate after build'
         type: boolean
@@ -34,12 +30,11 @@ jobs:
       - name: Compute image tag
         id: tag
         run: |
+          REGISTRY="${{ vars.DOCKER_REGISTRY || 'ghcr.io' }}"
           if [ "${{ github.event_name }}" = "release" ]; then
-            REGISTRY="${{ vars.DOCKER_REGISTRY || 'ghcr.io' }}"
             echo "value=${{ github.ref_name }}" >> $GITHUB_OUTPUT
             echo "push=true" >> $GITHUB_OUTPUT
           else
-            REGISTRY="${{ inputs.registry }}"
             LATEST=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
             LATEST=${LATEST:-v0.0.0}
             SHORT_SHA=$(git rev-parse --short HEAD)
