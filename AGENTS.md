@@ -15,6 +15,39 @@
     distribute.yml    # Workflow that pushes templates to target repos
 ```
 
+## Versioning standard
+
+All deploy templates follow a common versioning pattern driven by two triggers.
+
+### Git tag convention
+
+Releases are tagged in git using the format `v<Major>.<Minor>.<Patch>` (e.g. `v1.2.3`). This tag is created when a GitHub Release is published and is the single source of truth for the release version.
+
+### Trigger behaviour
+
+| Trigger | Version computed | Artifact pushed? |
+|---------|-----------------|-----------------|
+| `release` (published) | Taken directly from the git tag that created the release | Always |
+| `workflow_dispatch` | `<base>-RC-<short-sha>` where `<base>` is the latest semver tag (falls back to `v0.0.0`) | Only if the `deploy` input is `true` |
+
+The `workflow_dispatch` path is a dry-run by default (`deploy: false`), so triggering it manually builds and validates without publishing anything.
+
+### Version format by artifact type
+
+The `v` prefix is preserved or stripped depending on what the target ecosystem expects:
+
+| Artifact | Release version | RC version |
+|----------|----------------|------------|
+| Docker image tag | `v1.2.3` | `v1.2.3-RC-abc1234` |
+| NPM package version | `1.2.3` | `1.2.3-RC-abc1234` |
+
+### Adding versioning to a new deploy template
+
+1. Add a `Compute version` step (or equivalent) that outputs `value` (the computed version string) and `push` (`true`/`false`)
+2. On `release`: read `github.ref_name` for the version; set `push=true`
+3. On `workflow_dispatch`: find the latest tag with `git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1`, append `-RC-$(git rev-parse --short HEAD)`; set `push=${{ inputs.deploy }}`
+4. Gate any publish/push step on `steps.<id>.outputs.push == 'true'`
+
 ## Templates
 
 Each subdirectory of `.github/templates/` is a self-contained template bundle. The files inside mirror the path structure they should have in the target repository root. For example:
@@ -31,9 +64,7 @@ Adds a Docker build and push workflow to a target repository.
 
 **File:** `.github/workflows/docker-deploy.yml`
 
-**Triggers:**
-- `release` (published) — builds and pushes the image tagged with the release version (e.g. `v1.2.3`)
-- `workflow_dispatch` — builds a release candidate tagged as `v<Major>.<Minor>.<Patch>-RC-<short-sha>`, with an optional `deploy` input to push it to the registry
+**Triggers:** follows the [versioning standard](#versioning-standard) — Docker image tags keep the `v` prefix (`v1.2.3`, `v1.2.3-RC-abc1234`).
 
 **Configuration (set in the target repo):**
 
@@ -57,9 +88,7 @@ Adds an NPM package publish workflow to a target repository.
 
 **File:** `.github/workflows/npm-publish.yml`
 
-**Triggers:**
-- `release` (published) — strips the `v` prefix from the release tag, bumps `package.json` to that version, publishes to npm, packs a tarball, and attaches it to the GitHub release
-- `workflow_dispatch` — builds a release candidate versioned as `<Major>.<Minor>.<Patch>-RC-<short-sha>` based on the latest git tag, with an optional `deploy` input to publish it
+**Triggers:** follows the [versioning standard](#versioning-standard) — npm package versions strip the `v` prefix (`1.2.3`, `1.2.3-RC-abc1234`). On `release`, the tarball is attached to the GitHub release as an asset.
 
 **Dist-tag logic** (carried through to `npm publish --tag`):
 
