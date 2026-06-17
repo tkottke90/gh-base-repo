@@ -14,6 +14,7 @@ on:
         options:
           - docker-deploy
           - nodejs
+          - npm-publish
           - typescript
 
 jobs:
