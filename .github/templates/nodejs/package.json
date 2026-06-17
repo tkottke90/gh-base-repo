@@ -1,0 +1,12 @@
+{
+  "name": "gh-base-repo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "format": "npm run format --workspaces --if-present"
+  }
+}

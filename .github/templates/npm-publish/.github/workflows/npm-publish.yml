@@ -1,0 +1,107 @@
+name: NPM Publish
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: 'Publish release candidate after build'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            VERSION="${{ github.ref_name }}"
+            echo "value=${VERSION#v}" >> $GITHUB_OUTPUT
+            echo "push=true" >> $GITHUB_OUTPUT
+          else
+            LATEST=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
+            LATEST=${LATEST:-v0.0.0}
+            SHORT_SHA=$(git rev-parse --short HEAD)
+            echo "value=${LATEST#v}-RC-${SHORT_SHA}" >> $GITHUB_OUTPUT
+            echo "push=${{ inputs.deploy }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: ${{ vars.NPM_REGISTRY_URL || 'https://registry.npmjs.org' }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Write release summary
+        run: |
+          PKG_NAME=$(node -p "require('./package.json').name")
+          echo "## 📦 Release Information" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Package | \`${PKG_NAME}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Version | \`${{ steps.version.outputs.value }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Publish | ${{ steps.version.outputs.push == 'true' && '✅ Yes' || '⏭️ Dry run' }} |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Determine npm dist-tag
+        id: dist-tag
+        run: |
+          VERSION="${{ steps.version.outputs.value }}"
+
+          if [[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+-(.+)$ ]]; then
+            PRERELEASE="${BASH_REMATCH[1]}"
+            TAG=$(echo "$PRERELEASE" | sed -E 's/^([a-zA-Z]+).*/\1/')
+
+            if [[ $TAG =~ ^[0-9]+$ ]] || [[ -z "$TAG" ]]; then
+              TAG="next"
+            fi
+
+            echo "value=${TAG}" >> $GITHUB_OUTPUT
+            echo "📋 Pre-release detected: \`${VERSION}\` → dist-tag: \`${TAG}\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "value=latest" >> $GITHUB_OUTPUT
+            echo "📋 Stable release: \`${VERSION}\` → dist-tag: \`latest\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Build
+        run: npm run build
+
+      - name: Bump version
+        run: npm version ${{ steps.version.outputs.value }} --no-git-tag-version
+
+      - name: Publish
+        if: steps.version.outputs.push == 'true'
+        run: npm publish --tag ${{ steps.dist-tag.outputs.value }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_REGISTRY_TOKEN }}
+
+      - name: Create tarball
+        id: pack
+        run: |
+          TARBALL=$(npm pack)
+          PKG_NAME=$(node -p "require('./package.json').name")
+          SIMPLE_NAME=$(echo "$PKG_NAME" | sed 's/@//g' | sed 's/\//-/g').tgz
+          mv "$TARBALL" "$SIMPLE_NAME"
+          echo "name=${SIMPLE_NAME}" >> $GITHUB_OUTPUT
+          echo "📦 Tarball: \`${SIMPLE_NAME}\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload tarball to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.pack.outputs.name }}

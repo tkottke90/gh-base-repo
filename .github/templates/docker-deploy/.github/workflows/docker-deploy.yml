@@ -1,0 +1,66 @@
+name: Docker Build & Deploy
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: 'Deploy release candidate after build'
+        type: boolean
+        default: false
+
+env:
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute image tag
+        id: tag
+        run: |
+          REGISTRY="${{ vars.DOCKER_REGISTRY || 'ghcr.io' }}"
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "value=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            echo "push=true" >> $GITHUB_OUTPUT
+          else
+            LATEST=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
+            LATEST=${LATEST:-v0.0.0}
+            SHORT_SHA=$(git rev-parse --short HEAD)
+            echo "value=${LATEST}-RC-${SHORT_SHA}" >> $GITHUB_OUTPUT
+            echo "push=${{ inputs.deploy }}" >> $GITHUB_OUTPUT
+          fi
+          echo "registry=${REGISTRY}" >> $GITHUB_OUTPUT
+
+      - name: Log in to container registry
+        if: steps.tag.outputs.push == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ steps.tag.outputs.registry }}
+          username: ${{ secrets.REGISTRY_USERNAME || github.actor }}
+          password: ${{ secrets.REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.tag.outputs.registry }}/${{ env.IMAGE_NAME }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: ${{ steps.tag.outputs.push == 'true' }}
+          tags: ${{ steps.tag.outputs.registry }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.value }}
+          labels: ${{ steps.meta.outputs.labels }}

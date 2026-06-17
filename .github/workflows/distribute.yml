@@ -1,0 +1,63 @@
+name: Distribute Template
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_repo:
+        description: 'Target repository (owner/repo)'
+        required: true
+        type: string
+      template:
+        description: 'Template to distribute'
+        required: true
+        type: choice
+        options:
+          - docker-deploy
+          - nodejs
+          - npm-publish
+          - typescript
+      path:
+        description: 'Subdirectory in the target repo to copy the template into (optional, defaults to repo root)'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  distribute:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          path: source
+
+      - name: Checkout target
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.target_repo }}
+          token: ${{ secrets.DISTRIBUTION_TOKEN }}
+          path: target
+
+      - name: Copy template
+        env:
+          TEMPLATE: ${{ inputs.template }}
+          DEST_PATH: ${{ inputs.path }}
+        run: |
+          DEST="target${DEST_PATH:+/${DEST_PATH}}"
+          mkdir -p "$DEST"
+          cp -r "source/.github/templates/${TEMPLATE}/." "$DEST/"
+
+      - name: Open PR in target repo
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.DISTRIBUTION_TOKEN }}
+          path: target
+          commit-message: "chore: add ${{ inputs.template }} from tkottke90/gh-base-repo"
+          branch: chore/distribute-template
+          delete-branch: true
+          title: "chore: add ${{ inputs.template }} from tkottke90/gh-base-repo"
+          body: |
+            Distributes `${{ inputs.template }}` from [tkottke90/gh-base-repo](https://github.com/tkottke90/gh-base-repo)${{ inputs.path && format(' into `{0}`', inputs.path) || '' }}.
+
+            > [!WARNING]
+            > Review this workflow carefully before merging — it will run with access to this repository's secrets.
