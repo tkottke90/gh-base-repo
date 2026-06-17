@@ -8,7 +8,8 @@
 .github/
   templates/          # Named template bundles (see below)
     docker-deploy/    # Docker build & deploy workflow
-    nodejs/           # Node.js project scaffold
+    nodejs/           # Node.js workspace monorepo scaffold
+    typescript/       # TypeScript/Node.js project with Mocha/Chai
   workflows/
     distribute.yml    # Workflow that pushes templates to target repos
 ```
@@ -49,6 +50,30 @@ Adds a root `package.json` configured for an npm workspace monorepo.
 
 Includes `build`, `test`, `lint`, and `format` scripts that each delegate to every workspace via `npm run <script> --workspaces --if-present`. Add workspace package paths to the `workspaces` array as packages are added to the repository.
 
+### typescript
+
+A TypeScript/Node.js project scaffold with Mocha and Chai for testing and ts-node for direct execution.
+
+**Files:**
+
+| File | Purpose |
+|------|---------|
+| `package.json` | Dependencies and scripts |
+| `tsconfig.json` | TypeScript compiler config (CommonJS, ES2022, strict) |
+| `.mocharc.yml` | Mocha config — registers ts-node and points at `test/**/*.test.ts` |
+| `src/index.ts` | Entry point placeholder |
+| `test/index.test.ts` | Example test demonstrating Mocha/Chai usage |
+
+**Scripts:**
+
+| Script | Command |
+|--------|---------|
+| `npm run build` | `tsc` — compiles to `dist/` |
+| `npm test` | `mocha` — runs all `test/**/*.test.ts` files via ts-node |
+| `npm start` | `ts-node src/index.ts` — runs the entry point directly |
+
+After distributing, update `name` in `package.json` and run `npm install`.
+
 ## Distributing a template
 
 Templates are pushed to target repositories using the **Distribute Template** workflow (`distribute.yml`), triggered manually from the Actions tab.
@@ -58,7 +83,7 @@ Templates are pushed to target repositories using the **Distribute Template** wo
 | Input | Description |
 |-------|-------------|
 | `target_repo` | The repository to push to, in `owner/repo` format |
-| `template` | The template to distribute (`docker-deploy` or `nodejs`) |
+| `template` | The template to distribute (`docker-deploy`, `nodejs`, or `typescript`) |
 
 The workflow checks out both this repo and the target repo, copies all files from the chosen template bundle into the target root, and opens a pull request in the target repository for review before anything is merged.
 
