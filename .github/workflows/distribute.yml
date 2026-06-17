@@ -12,7 +12,8 @@ on:
         required: true
         type: choice
         options:
-          - workflows/docker-deploy.yml
+          - .github/workflows/docker-deploy.yml
+          - package.json
 
 jobs:
   distribute:
@@ -35,7 +36,7 @@ jobs:
           TEMPLATE: ${{ inputs.template }}
         run: |
           src="source/.github/templates/${TEMPLATE}"
-          dest="target/.github/${TEMPLATE}"
+          dest="target/${TEMPLATE}"
           mkdir -p "$(dirname "$dest")"
           cp "$src" "$dest"
 
