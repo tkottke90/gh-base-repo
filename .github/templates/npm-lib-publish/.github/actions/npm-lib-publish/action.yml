@@ -6,7 +6,7 @@ description: >
 inputs:
   node-version:
     description: Node.js version to use
-    default: '20'
+    default: '24'
   version:
     description: >
       Package version to set and publish (e.g. 1.2.3 or 1.2.3-RC-abc1234).

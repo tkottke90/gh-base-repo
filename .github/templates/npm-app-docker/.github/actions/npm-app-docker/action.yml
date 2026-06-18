@@ -6,7 +6,7 @@ description: >
 inputs:
   node-version:
     description: Node.js version to use
-    default: '20'
+    default: '24'
   registry:
     description: Container registry host (e.g. ghcr.io, docker.io, registry.example.com)
     default: 'ghcr.io'

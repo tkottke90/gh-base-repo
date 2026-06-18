@@ -45,7 +45,7 @@ Composite action — call it from a workflow step using `uses: ./.github/actions
 
 | Input | Required | Default | Description |
 |-------|----------|---------|-------------|
-| `node-version` | No | `20` | Node.js version |
+| `node-version` | No | `24` | Node.js version |
 | `registry` | No | `ghcr.io` | Container registry host |
 | `image-tag` | Yes | — | Full image tag(s) to build and push (e.g. `ghcr.io/owner/repo:v1.0.0`) |
 | `push` | No | `false` | Set to `'true'` to push the image |
@@ -60,7 +60,7 @@ Composite action — call it from a workflow step using `uses: ./.github/actions
 
 | Input | Required | Default | Description |
 |-------|----------|---------|-------------|
-| `node-version` | No | `20` | Node.js version |
+| `node-version` | No | `24` | Node.js version |
 | `version` | Yes | — | Package version to set (strip the `v` prefix, e.g. `1.2.3`) |
 | `dist-tag` | No | `latest` | NPM dist-tag (e.g. `latest`, `next`, `beta`, `RC`) |
 | `publish` | No | `false` | Set to `'true'` to publish to the registry |

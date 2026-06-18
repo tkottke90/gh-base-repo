@@ -147,7 +147,7 @@ A composite action that builds an NPM application and pushes it to a Docker cont
 
 | Input | Required | Default | Description |
 |-------|----------|---------|-------------|
-| `node-version` | No | `20` | Node.js version |
+| `node-version` | No | `24` | Node.js version |
 | `registry` | No | `ghcr.io` | Container registry host |
 | `image-tag` | Yes | — | Full image tag(s) to apply |
 | `push` | No | `false` | `'true'` to push after building |
