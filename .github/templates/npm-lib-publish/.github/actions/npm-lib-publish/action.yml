@@ -1,0 +1,71 @@
+name: Build NPM Library & Publish
+description: >
+  Installs dependencies, builds an NPM library, bumps its version, optionally
+  publishes it to a configurable registry, and always produces a tarball.
+
+inputs:
+  node-version:
+    description: Node.js version to use
+    default: '20'
+  version:
+    description: >
+      Package version to set and publish (e.g. 1.2.3 or 1.2.3-RC-abc1234).
+      The v-prefix should be stripped before passing this input.
+    required: true
+  dist-tag:
+    description: NPM dist-tag to publish under (e.g. latest, next, beta, RC)
+    default: 'latest'
+  publish:
+    description: Set to 'true' to publish the package to the registry
+    default: 'false'
+  registry-url:
+    description: NPM registry URL. Defaults to the public registry.
+    default: 'https://registry.npmjs.org'
+  registry-token:
+    description: >
+      Auth token for the NPM registry. Required when publish is 'true'.
+      Pass via secrets (e.g. secrets.NPM_REGISTRY_TOKEN).
+    default: ''
+
+outputs:
+  tarball:
+    description: File name of the generated tarball (e.g. my-package-1.2.3.tgz)
+    value: ${{ steps.pack.outputs.tarball }}
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        registry-url: ${{ inputs.registry-url }}
+
+    - name: Install dependencies
+      shell: bash
+      run: npm ci
+
+    - name: Build
+      shell: bash
+      run: npm run build
+
+    - name: Bump version
+      shell: bash
+      run: npm version ${{ inputs.version }} --no-git-tag-version
+
+    - name: Publish
+      if: inputs.publish == 'true'
+      shell: bash
+      run: npm publish --tag ${{ inputs.dist-tag }}
+      env:
+        NODE_AUTH_TOKEN: ${{ inputs.registry-token }}
+
+    - name: Pack
+      id: pack
+      shell: bash
+      run: |
+        TARBALL=$(npm pack)
+        PKG_NAME=$(node -p "require('./package.json').name")
+        SIMPLE_NAME=$(echo "$PKG_NAME" | sed 's/@//g' | sed 's/\//-/g').tgz
+        mv "$TARBALL" "$SIMPLE_NAME"
+        echo "tarball=${SIMPLE_NAME}" >> $GITHUB_OUTPUT

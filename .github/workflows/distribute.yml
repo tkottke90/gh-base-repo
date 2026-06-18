@@ -14,7 +14,10 @@ on:
         options:
           - docker-deploy
           - nodejs
+          - npm-app-docker
+          - npm-lib-publish
           - npm-publish
+          - ssh-deploy
           - typescript
       path:
         description: 'Subdirectory in the target repo to copy the template into (optional, defaults to repo root)'
