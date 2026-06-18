@@ -26,6 +26,15 @@ jobs:
   distribute:
     runs-on: ubuntu-latest
     steps:
+      - name: Check DISTRIBUTION_TOKEN
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error::DISTRIBUTION_TOKEN secret is not set. Add a Personal Access Token with repo write access to this repository's secrets and re-run the workflow."
+            exit 1
+          fi
+        env:
+          TOKEN: ${{ secrets.DISTRIBUTION_TOKEN }}
+
       - name: Checkout source
         uses: actions/checkout@v4
         with:
