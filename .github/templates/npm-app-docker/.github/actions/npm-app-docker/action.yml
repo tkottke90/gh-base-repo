@@ -41,14 +41,11 @@ inputs:
   npm-registry:
     description: >
       Private NPM registry URL (e.g. https://registry.example.com).
-      When provided alongside npm-username and npm-password, configures
-      ~/.npmrc with Basic auth before npm ci runs.
+      When provided alongside npm-token, configures ~/.npmrc with token
+      auth before npm ci runs.
     default: ''
-  npm-username:
-    description: Username for the private NPM registry
-    default: ''
-  npm-password:
-    description: Password for the private NPM registry (store as a secret)
+  npm-token:
+    description: Auth token for the private NPM registry (store as a secret)
     default: ''
 
 runs:
@@ -60,14 +57,13 @@ runs:
         node-version: ${{ inputs.node-version }}
 
     - name: Configure npm registry
-      if: inputs.npm-username != ''
+      if: inputs.npm-token != ''
       shell: bash
       run: |
         REGISTRY_HOST=$(echo "${{ inputs.npm-registry }}" | sed 's|https\?://||')
-        AUTH_TOKEN=$(echo -n "${{ inputs.npm-username }}:${{ inputs.npm-password }}" | base64)
-        echo "::add-mask::${AUTH_TOKEN}"
+        echo "::add-mask::${{ inputs.npm-token }}"
         echo "registry=${{ inputs.npm-registry }}" >> ~/.npmrc
-        echo "//${REGISTRY_HOST}/:_auth=${AUTH_TOKEN}" >> ~/.npmrc
+        echo "//${REGISTRY_HOST}/:_authToken=${{ inputs.npm-token }}" >> ~/.npmrc
 
     - name: Install dependencies
       shell: bash

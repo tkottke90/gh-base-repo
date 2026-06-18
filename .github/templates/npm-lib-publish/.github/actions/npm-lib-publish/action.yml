@@ -26,14 +26,6 @@ inputs:
       Auth token for the NPM registry. Required when publish is 'true'.
       Pass via secrets (e.g. secrets.NPM_REGISTRY_TOKEN).
     default: ''
-  registry-username:
-    description: >
-      Username for the NPM registry. When provided alongside registry-password,
-      configures ~/.npmrc with Basic auth before npm ci runs.
-    default: ''
-  registry-password:
-    description: Password for the NPM registry (store as a secret)
-    default: ''
   build-command:
     description: Command used to build the library
     default: 'npm run build --workspaces --if-present'
@@ -53,14 +45,13 @@ runs:
         registry-url: ${{ inputs.registry-url }}
 
     - name: Configure npm registry
-      if: inputs.registry-username != ''
+      if: inputs.registry-token != ''
       shell: bash
       run: |
         REGISTRY_HOST=$(echo "${{ inputs.registry-url }}" | sed 's|https\?://||')
-        AUTH_TOKEN=$(echo -n "${{ inputs.registry-username }}:${{ inputs.registry-password }}" | base64)
-        echo "::add-mask::${AUTH_TOKEN}"
+        echo "::add-mask::${{ inputs.registry-token }}"
         echo "registry=${{ inputs.registry-url }}" >> ~/.npmrc
-        echo "//${REGISTRY_HOST}/:_auth=${AUTH_TOKEN}" >> ~/.npmrc
+        echo "//${REGISTRY_HOST}/:_authToken=${{ inputs.registry-token }}" >> ~/.npmrc
 
     - name: Install dependencies
       shell: bash
