@@ -53,6 +53,7 @@ Composite action — call it from a workflow step using `uses: ./.github/actions
 | `registry-password` | No* | — | Registry login password or token. *Required when `push` is `true` |
 | `context` | No | `.` | Docker build context path |
 | `build-args` | No | — | Newline-separated `KEY=VALUE` Docker build arguments |
+| `build-command` | No | `npm run build --workspaces --if-present` | Command used to build the application |
 
 ### npm-lib-publish
 
@@ -66,6 +67,7 @@ Composite action — call it from a workflow step using `uses: ./.github/actions
 | `publish` | No | `false` | Set to `'true'` to publish to the registry |
 | `registry-url` | No | `https://registry.npmjs.org` | NPM registry URL |
 | `registry-token` | No* | — | Registry auth token. *Required when `publish` is `true` |
+| `build-command` | No | `npm run build --workspaces --if-present` | Command used to build the library |
 
 **Output:** `tarball` — file name of the generated `.tgz` (e.g. `my-package-1.2.3.tgz`).
 

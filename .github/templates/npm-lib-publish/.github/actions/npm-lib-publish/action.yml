@@ -26,6 +26,9 @@ inputs:
       Auth token for the NPM registry. Required when publish is 'true'.
       Pass via secrets (e.g. secrets.NPM_REGISTRY_TOKEN).
     default: ''
+  build-command:
+    description: Command used to build the library
+    default: 'npm run build --workspaces --if-present'
 
 outputs:
   tarball:
@@ -45,9 +48,21 @@ runs:
       shell: bash
       run: npm ci
 
+    - name: Format
+      shell: bash
+      run: npm run format --workspaces --if-present
+
+    - name: Lint
+      shell: bash
+      run: npm run lint --workspaces --if-present
+
+    - name: Test
+      shell: bash
+      run: npm run test --workspaces --if-present
+
     - name: Build
       shell: bash
-      run: npm run build
+      run: ${{ inputs.build-command }}
 
     - name: Bump version
       shell: bash

@@ -155,6 +155,7 @@ A composite action that builds an NPM application and pushes it to a Docker cont
 | `registry-password` | No* | — | Registry password/token. *Required when `push='true'` |
 | `context` | No | `.` | Docker build context |
 | `build-args` | No | — | Newline-separated `KEY=VALUE` build args |
+| `build-command` | No | `npm run build --workspaces --if-present` | Command used to build the application |
 
 **Calling example:**
 
@@ -186,6 +187,7 @@ A composite action that builds an NPM library, bumps its version, optionally pub
 | `publish` | No | `false` | `'true'` to publish |
 | `registry-url` | No | `https://registry.npmjs.org` | Registry URL |
 | `registry-token` | No* | — | Auth token. *Required when `publish='true'` |
+| `build-command` | No | `npm run build --workspaces --if-present` | Command used to build the library |
 
 **Output:** `tarball` — generated `.tgz` filename.
 

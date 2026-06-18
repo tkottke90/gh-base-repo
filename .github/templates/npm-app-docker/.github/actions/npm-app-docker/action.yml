@@ -35,6 +35,9 @@ inputs:
       Docker build arguments as newline-separated KEY=VALUE pairs
       (e.g. "NODE_ENV=production\nAPP_VERSION=1.0.0").
     default: ''
+  build-command:
+    description: Command used to build the application
+    default: 'npm run build --workspaces --if-present'
 
 runs:
   using: composite
@@ -48,9 +51,21 @@ runs:
       shell: bash
       run: npm ci
 
+    - name: Format
+      shell: bash
+      run: npm run format --workspaces --if-present
+
+    - name: Lint
+      shell: bash
+      run: npm run lint --workspaces --if-present
+
+    - name: Test
+      shell: bash
+      run: npm run test --workspaces --if-present
+
     - name: Build
       shell: bash
-      run: npm run build
+      run: ${{ inputs.build-command }}
 
     - name: Log in to container registry
       if: inputs.push == 'true'
