@@ -54,6 +54,9 @@ Composite action — call it from a workflow step using `uses: ./.github/actions
 | `context` | No | `.` | Docker build context path |
 | `build-args` | No | — | Newline-separated `KEY=VALUE` Docker build arguments |
 | `build-command` | No | `npm run build --workspaces --if-present` | Command used to build the application |
+| `npm-registry` | No | — | Private NPM registry URL. Required when `npm-username` is set |
+| `npm-username` | No | — | Username for the private NPM registry. Triggers `.npmrc` Basic auth setup when set |
+| `npm-password` | No | — | Password for the private NPM registry (store as a secret) |
 
 ### npm-lib-publish
 
@@ -66,7 +69,9 @@ Composite action — call it from a workflow step using `uses: ./.github/actions
 | `dist-tag` | No | `latest` | NPM dist-tag (e.g. `latest`, `next`, `beta`, `RC`) |
 | `publish` | No | `false` | Set to `'true'` to publish to the registry |
 | `registry-url` | No | `https://registry.npmjs.org` | NPM registry URL |
-| `registry-token` | No* | — | Registry auth token. *Required when `publish` is `true` |
+| `registry-token` | No* | — | Registry auth token for publish. *Required when `publish` is `true` |
+| `registry-username` | No | — | Username for the registry. Triggers `.npmrc` Basic auth setup for `npm ci` when set |
+| `registry-password` | No | — | Password for the registry (store as a secret) |
 | `build-command` | No | `npm run build --workspaces --if-present` | Command used to build the library |
 
 **Output:** `tarball` — file name of the generated `.tgz` (e.g. `my-package-1.2.3.tgz`).

@@ -38,6 +38,18 @@ inputs:
   build-command:
     description: Command used to build the application
     default: 'npm run build --workspaces --if-present'
+  npm-registry:
+    description: >
+      Private NPM registry URL (e.g. https://registry.example.com).
+      When provided alongside npm-username and npm-password, configures
+      ~/.npmrc with Basic auth before npm ci runs.
+    default: ''
+  npm-username:
+    description: Username for the private NPM registry
+    default: ''
+  npm-password:
+    description: Password for the private NPM registry (store as a secret)
+    default: ''
 
 runs:
   using: composite
@@ -46,6 +58,16 @@ runs:
       uses: actions/setup-node@v4
       with:
         node-version: ${{ inputs.node-version }}
+
+    - name: Configure npm registry
+      if: inputs.npm-username != ''
+      shell: bash
+      run: |
+        REGISTRY_HOST=$(echo "${{ inputs.npm-registry }}" | sed 's|https\?://||')
+        AUTH_TOKEN=$(echo -n "${{ inputs.npm-username }}:${{ inputs.npm-password }}" | base64)
+        echo "::add-mask::${AUTH_TOKEN}"
+        echo "registry=${{ inputs.npm-registry }}" >> ~/.npmrc
+        echo "//${REGISTRY_HOST}/:_auth=${AUTH_TOKEN}" >> ~/.npmrc
 
     - name: Install dependencies
       shell: bash
