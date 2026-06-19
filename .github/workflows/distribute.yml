@@ -59,6 +59,116 @@ jobs:
           mkdir -p "$DEST"
           cp -r "source/.github/templates/${TEMPLATE}/." "$DEST/"
 
+      - name: Compute template metadata
+        id: meta
+        env:
+          TEMPLATE: ${{ inputs.template }}
+          DIST_PATH: ${{ inputs.path }}
+        run: |
+          case "$TEMPLATE" in
+            docker-deploy)
+              VARIABLES="DOCKER_REGISTRY"
+              SECRETS="REGISTRY_USERNAME REGISTRY_PASSWORD"
+              ;;
+            npm-app-docker)
+              VARIABLES="DOCKER_REGISTRY NPM_REGISTRY_URL"
+              SECRETS="REGISTRY_USERNAME REGISTRY_PASSWORD NPM_REGISTRY_TOKEN"
+              ;;
+            npm-lib-publish|npm-publish)
+              VARIABLES="NPM_REGISTRY_URL"
+              SECRETS="NPM_REGISTRY_TOKEN"
+              ;;
+            ssh-deploy)
+              VARIABLES="DEPLOY_HOST DEPLOY_USER"
+              SECRETS="SSH_PRIVATE_KEY SSH_KNOWN_HOSTS"
+              ;;
+            *)
+              VARIABLES=""
+              SECRETS=""
+              ;;
+          esac
+
+          echo "variables=${VARIABLES}" >> $GITHUB_OUTPUT
+
+          PATH_NOTE=""
+          [ -n "$DIST_PATH" ] && PATH_NOTE=" into \`${DIST_PATH}\`"
+
+          {
+            echo "pr_body<<PR_BODY_EOF"
+            echo "Distributes \`${TEMPLATE}\` from [tkottke90/gh-base-repo](https://github.com/tkottke90/gh-base-repo)${PATH_NOTE}."
+
+            if [ -n "$VARIABLES" ] || [ -n "$SECRETS" ]; then
+              echo ""
+              echo "## Configuration"
+              echo ""
+              echo "Set the following in **Settings → Secrets and variables → Actions** after merging:"
+
+              if [ -n "$VARIABLES" ]; then
+                echo ""
+                echo "### Variables"
+                echo ""
+                echo "| Variable | Description |"
+                echo "|----------|-------------|"
+                for VAR in $VARIABLES; do
+                  case "$VAR" in
+                    DOCKER_REGISTRY)   DESC="Container registry host (defaults to \`ghcr.io\`)" ;;
+                    NPM_REGISTRY_URL)  DESC="NPM registry URL (defaults to \`https://registry.npmjs.org\`)" ;;
+                    DEPLOY_HOST)       DESC="SSH server hostname or IP address" ;;
+                    DEPLOY_USER)       DESC="SSH login username" ;;
+                    *)                 DESC="" ;;
+                  esac
+                  echo "| \`${VAR}\` | ${DESC} |"
+                done
+                echo ""
+                echo "> [!NOTE]"
+                echo "> Empty variables have been pre-created in the repository. Fill in their values before running any workflows."
+              fi
+
+              if [ -n "$SECRETS" ]; then
+                echo ""
+                echo "### Secrets"
+                echo ""
+                echo "| Secret | Description |"
+                echo "|--------|-------------|"
+                for SECRET in $SECRETS; do
+                  case "$SECRET" in
+                    REGISTRY_USERNAME)  DESC="Container registry login username (defaults to \`github.actor\` for GHCR)" ;;
+                    REGISTRY_PASSWORD)  DESC="Container registry login password or token (defaults to \`GITHUB_TOKEN\` for GHCR)" ;;
+                    NPM_REGISTRY_TOKEN) DESC="Auth token for the NPM registry" ;;
+                    SSH_PRIVATE_KEY)    DESC="SSH private key in PEM format" ;;
+                    SSH_KNOWN_HOSTS)    DESC="Known hosts entry — obtain with \`ssh-keyscan -H <host>\`" ;;
+                    *)                  DESC="" ;;
+                  esac
+                  echo "| \`${SECRET}\` | ${DESC} |"
+                done
+              fi
+            fi
+
+            echo ""
+            echo "> [!WARNING]"
+            echo "> Review this workflow carefully before merging — it will run with access to this repository's secrets."
+            echo "PR_BODY_EOF"
+          } >> $GITHUB_OUTPUT
+
+      - name: Create repository variables
+        if: steps.meta.outputs.variables != ''
+        env:
+          GH_TOKEN: ${{ secrets.DISTRIBUTION_TOKEN }}
+          VARIABLES: ${{ steps.meta.outputs.variables }}
+          TARGET_REPO: ${{ inputs.target_repo }}
+        run: |
+          for VAR in $VARIABLES; do
+            EXISTING=$(gh api "/repos/${TARGET_REPO}/actions/variables/${VAR}" --jq '.name' 2>/dev/null || true)
+            if [ -z "$EXISTING" ]; then
+              gh api --method POST "/repos/${TARGET_REPO}/actions/variables" \
+                -f name="${VAR}" \
+                -f value=""
+              echo "Created variable: ${VAR}"
+            else
+              echo "Variable already exists, skipping: ${VAR}"
+            fi
+          done
+
       - name: Open PR in target repo
         uses: peter-evans/create-pull-request@v7
         with:
@@ -68,8 +178,4 @@ jobs:
           branch: chore/distribute-template
           delete-branch: true
           title: "chore: add ${{ inputs.template }} from tkottke90/gh-base-repo"
-          body: |
-            Distributes `${{ inputs.template }}` from [tkottke90/gh-base-repo](https://github.com/tkottke90/gh-base-repo)${{ inputs.path && format(' into `{0}`', inputs.path) || '' }}.
-
-            > [!WARNING]
-            > Review this workflow carefully before merging — it will run with access to this repository's secrets.
+          body: ${{ steps.meta.outputs.pr_body }}
