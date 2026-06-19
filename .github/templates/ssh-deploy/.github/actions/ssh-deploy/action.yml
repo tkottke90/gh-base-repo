@@ -1,0 +1,66 @@
+name: SSH Deploy
+description: >
+  Connects to a remote server over SSH using a private key and runs a command.
+  Always cleans up the private key after the step completes.
+
+inputs:
+  host:
+    description: SSH server hostname or IP address
+    required: true
+  port:
+    description: SSH server port
+    default: '22'
+  username:
+    description: SSH login username
+    required: true
+  private-key:
+    description: >
+      SSH private key in PEM format. Store as a secret and pass via
+      secrets.SSH_PRIVATE_KEY. The corresponding public key must be in
+      the server's authorized_keys file.
+    required: true
+  command:
+    description: Shell command to run on the remote server
+    required: true
+  known-hosts:
+    description: >
+      SSH known_hosts entry for the target server. Obtain with:
+        ssh-keyscan -H <host>
+      Store the output as a secret or variable and pass it here.
+      If omitted, the host key is fetched automatically via ssh-keyscan
+      (trust-on-first-use — not recommended for production deployments).
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Configure SSH
+      shell: bash
+      run: |
+        mkdir -p ~/.ssh
+        chmod 700 ~/.ssh
+
+        printf '%s\n' "${{ inputs.private-key }}" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+
+        if [ -n "${{ inputs.known-hosts }}" ]; then
+          printf '%s\n' "${{ inputs.known-hosts }}" >> ~/.ssh/known_hosts
+        else
+          ssh-keyscan -p "${{ inputs.port }}" -H "${{ inputs.host }}" >> ~/.ssh/known_hosts 2>/dev/null
+        fi
+        chmod 644 ~/.ssh/known_hosts
+
+    - name: Run remote command
+      shell: bash
+      run: |
+        ssh -i ~/.ssh/deploy_key \
+          -p "${{ inputs.port }}" \
+          -o StrictHostKeyChecking=yes \
+          -o BatchMode=yes \
+          "${{ inputs.username }}@${{ inputs.host }}" \
+          "${{ inputs.command }}"
+
+    - name: Clean up SSH key
+      if: always()
+      shell: bash
+      run: rm -f ~/.ssh/deploy_key

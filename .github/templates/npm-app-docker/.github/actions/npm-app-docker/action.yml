@@ -1,0 +1,102 @@
+name: Build NPM App & Push Docker Image
+description: >
+  Installs dependencies, builds an NPM application, then builds and optionally
+  pushes a Docker image to a configurable container registry.
+
+inputs:
+  node-version:
+    description: Node.js version to use
+    default: '24'
+  registry:
+    description: Container registry host (e.g. ghcr.io, docker.io, registry.example.com)
+    default: 'ghcr.io'
+  image-tag:
+    description: >
+      Full image tag including registry, repository, and version
+      (e.g. ghcr.io/owner/repo:v1.0.0). May be a comma-separated list for
+      multiple tags.
+    required: true
+  push:
+    description: Set to 'true' to push the image to the registry after building
+    default: 'false'
+  registry-username:
+    description: Username for the container registry. Required when push is 'true'.
+    default: ''
+  registry-password:
+    description: >
+      Password or token for the container registry. Required when push is 'true'.
+      Pass via secrets (e.g. secrets.REGISTRY_PASSWORD).
+    default: ''
+  context:
+    description: Docker build context path
+    default: '.'
+  build-args:
+    description: >
+      Docker build arguments as newline-separated KEY=VALUE pairs
+      (e.g. "NODE_ENV=production\nAPP_VERSION=1.0.0").
+    default: ''
+  build-command:
+    description: Command used to build the application
+    default: 'npm run build --workspaces --if-present'
+  npm-registry:
+    description: >
+      Private NPM registry URL (e.g. https://registry.example.com).
+      When provided alongside npm-token, configures ~/.npmrc with token
+      auth before npm ci runs.
+    default: ''
+  npm-token:
+    description: Auth token for the private NPM registry (store as a secret)
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Configure npm registry
+      if: inputs.npm-token != ''
+      shell: bash
+      run: |
+        REGISTRY_HOST=$(echo "${{ inputs.npm-registry }}" | sed 's|https\?://||')
+        echo "::add-mask::${{ inputs.npm-token }}"
+        echo "registry=${{ inputs.npm-registry }}" >> ~/.npmrc
+        echo "//${REGISTRY_HOST}/:_authToken=${{ inputs.npm-token }}" >> ~/.npmrc
+
+    - name: Install dependencies
+      shell: bash
+      run: npm ci
+
+    - name: Format
+      shell: bash
+      run: npm run format --workspaces --if-present
+
+    - name: Lint
+      shell: bash
+      run: npm run lint --workspaces --if-present
+
+    - name: Test
+      shell: bash
+      run: npm run test --workspaces --if-present
+
+    - name: Build
+      shell: bash
+      run: ${{ inputs.build-command }}
+
+    - name: Log in to container registry
+      if: inputs.push == 'true'
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ inputs.registry }}
+        username: ${{ inputs.registry-username }}
+        password: ${{ inputs.registry-password }}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v6
+      with:
+        context: ${{ inputs.context }}
+        push: ${{ inputs.push == 'true' }}
+        tags: ${{ inputs.image-tag }}
+        build-args: ${{ inputs.build-args }}
